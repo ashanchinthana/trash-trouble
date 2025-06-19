@@ -3,6 +3,7 @@ import random
 import sys
 import os
 import math
+from tkinter import Tk, filedialog
 
 # Initialize Pygame
 pygame.init()
@@ -76,6 +77,7 @@ class Player:
         self.carrying_trash = None
         self.animation_frame = 0
         self.facing_right = True
+        self.face_image = None
         
     def move_left(self):
         if self.x > 0:
@@ -104,27 +106,33 @@ class Player:
                         (self.x, self.y + bob_offset, self.width, self.height), 3)
         
         # Head
-        pygame.draw.circle(screen, body_color, 
-                          (self.x + self.width//2, self.y + 20 + bob_offset), 25)
-        pygame.draw.circle(screen, BLACK, 
-                          (self.x + self.width//2, self.y + 20 + bob_offset), 25, 3)
-        
-        # Eyes
-        eye_y = self.y + 15 + bob_offset
-        if self.facing_right:
-            pygame.draw.circle(screen, detail_color, (self.x + 20, eye_y), 6)
-            pygame.draw.circle(screen, detail_color, (self.x + 40, eye_y), 6)
-            pygame.draw.circle(screen, BLACK, (self.x + 22, eye_y), 3)
-            pygame.draw.circle(screen, BLACK, (self.x + 42, eye_y), 3)
+        if self.face_image:
+            # Blit custom face
+            face_rect = self.face_image.get_rect(center=(self.x + self.width // 2, self.y + 20 + bob_offset))
+            screen.blit(self.face_image, face_rect)
         else:
-            pygame.draw.circle(screen, detail_color, (self.x + 20, eye_y), 6)
-            pygame.draw.circle(screen, detail_color, (self.x + 40, eye_y), 6)
-            pygame.draw.circle(screen, BLACK, (self.x + 18, eye_y), 3)
-            pygame.draw.circle(screen, BLACK, (self.x + 38, eye_y), 3)
-        
-        # Mouth
-        pygame.draw.arc(screen, RED, 
-                       (self.x + 15, self.y + 25 + bob_offset, 30, 15), 0, math.pi, 3)
+            # Draw original face if no image
+            pygame.draw.circle(screen, body_color, 
+                              (self.x + self.width//2, self.y + 20 + bob_offset), 25)
+            pygame.draw.circle(screen, BLACK, 
+                              (self.x + self.width//2, self.y + 20 + bob_offset), 25, 3)
+            
+            # Eyes
+            eye_y = self.y + 15 + bob_offset
+            if self.facing_right:
+                pygame.draw.circle(screen, detail_color, (self.x + 20, eye_y), 6)
+                pygame.draw.circle(screen, detail_color, (self.x + 40, eye_y), 6)
+                pygame.draw.circle(screen, BLACK, (self.x + 22, eye_y), 3)
+                pygame.draw.circle(screen, BLACK, (self.x + 42, eye_y), 3)
+            else:
+                pygame.draw.circle(screen, detail_color, (self.x + 20, eye_y), 6)
+                pygame.draw.circle(screen, detail_color, (self.x + 40, eye_y), 6)
+                pygame.draw.circle(screen, BLACK, (self.x + 18, eye_y), 3)
+                pygame.draw.circle(screen, BLACK, (self.x + 38, eye_y), 3)
+            
+            # Mouth
+            pygame.draw.arc(screen, RED, 
+                           (self.x + 15, self.y + 25 + bob_offset, 30, 15), 0, math.pi, 3)
         
         # Arms
         arm_y = self.y + 35 + bob_offset
@@ -306,7 +314,20 @@ class Game:
         self.lives = 3
         self.level = 1
         self.timer = 180  # Extended timer for more play time
-        self.game_state = "menu"
+        
+        # Game state
+        self.game_state = "enter_name"
+        self.player_name = ""
+        self.input_active = True
+        
+        # Define rects for input elements
+        self.input_box_rect = pygame.Rect(SCREEN_WIDTH//2 - 150, 180, 300, 50)
+        self.upload_button_rect = pygame.Rect(SCREEN_WIDTH//2 - 150, 260, 300, 50)
+        
+        self.player_face_image = self.load_player_face()
+        if self.player_face_image:
+            self.player.face_image = self.player_face_image
+            
         self.high_score = 0  # Track highest score in session
         
         # Power-up effects
@@ -334,6 +355,37 @@ class Game:
                 'color': random.choice([LIGHT_GREEN, WHITE, YELLOW]),
                 'speed': random.uniform(0.5, 2)
             })
+    
+    def open_file_dialog_and_load_face(self):
+        root = Tk()
+        root.withdraw()  # Hide the main Tkinter window
+        file_path = filedialog.askopenfilename(
+            title="Select a face image for your character",
+            filetypes=[("Image Files", "*.png *.jpg *.jpeg")]
+        )
+        root.destroy()
+        
+        if file_path:
+            self.player_face_image = self.load_player_face(file_path)
+            if self.player_face_image:
+                self.player.face_image = self.player_face_image
+
+    def load_player_face(self, file_path=None):
+        try:
+            path_to_load = file_path
+            if not path_to_load:
+                if os.path.exists("face.png"):
+                    path_to_load = "face.png"
+                elif os.path.exists("face.jpg"):
+                    path_to_load = "face.jpg"
+                
+            if path_to_load:
+                image = pygame.image.load(path_to_load).convert_alpha()
+                image = pygame.transform.scale(image, (40, 40))
+                return image
+        except Exception as e:
+            print(f"Could not load custom face image: {e}")
+        return None
     
     def create_particles(self, x, y, color, count=5):
         for _ in range(count):
@@ -606,6 +658,10 @@ class Game:
         level_surface = font.render(f"Level: {self.level}", True, WHITE)
         self.screen.blit(level_surface, (250, 10))
         
+        # Player Name
+        name_surface = font.render(f"Player: {self.player_name}", True, WHITE)
+        self.screen.blit(name_surface, (SCREEN_WIDTH // 2 - name_surface.get_width() // 2, 10))
+        
         # Timer with color coding
         timer_color = WHITE if self.timer > 20 else RED
         timer_surface = font.render(f"Time: {int(self.timer)}", True, timer_color)
@@ -635,7 +691,7 @@ class Game:
         over_text = font.render("GAME OVER", True, RED)
         self.screen.blit(over_text, (SCREEN_WIDTH//2 - over_text.get_width()//2, 120))
         font_small = pygame.font.Font(None, 40)
-        score_text = font_small.render(f"Your Score: {self.score}", True, YELLOW)
+        score_text = font_small.render(f"{self.player_name}'s Score: {self.score}", True, YELLOW)
         self.screen.blit(score_text, (SCREEN_WIDTH//2 - score_text.get_width()//2, 220))
         high_score_text = font_small.render(f"High Score: {self.high_score}", True, ORANGE)
         self.screen.blit(high_score_text, (SCREEN_WIDTH//2 - high_score_text.get_width()//2, 270))
@@ -645,6 +701,42 @@ class Game:
         motivational = font_tip.render("Tip: Try to keep your combo going for max points!", True, GREEN)
         self.screen.blit(motivational, (SCREEN_WIDTH//2 - motivational.get_width()//2, 400))
     
+    def draw_enter_name(self):
+        self.draw_background()
+        font_title = pygame.font.Font(None, 60)
+        font_input = pygame.font.Font(None, 48)
+        font_inst = pygame.font.Font(None, 28)
+
+        # Title
+        title_text = font_title.render("Create Your Player", True, WHITE)
+        self.screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, 100))
+        
+        # Input Box
+        input_box_color = YELLOW if self.input_active else WHITE
+        pygame.draw.rect(self.screen, input_box_color, self.input_box_rect, 2)
+        
+        # Player name text
+        name_surface = font_input.render(self.player_name, True, YELLOW)
+        self.screen.blit(name_surface, (self.input_box_rect.x + 10, self.input_box_rect.y + 5))
+        
+        # Upload button
+        pygame.draw.rect(self.screen, ORANGE, self.upload_button_rect)
+        upload_text_font = pygame.font.Font(None, 36)
+        upload_text = upload_text_font.render("Upload Face Image", True, BLACK)
+        self.screen.blit(upload_text, (self.upload_button_rect.x + (self.upload_button_rect.width - upload_text.get_width()) // 2, self.upload_button_rect.y + 10))
+        
+        # Instructions
+        inst_text1 = font_inst.render("Type your name and press ENTER to start", True, WHITE)
+        self.screen.blit(inst_text1, (SCREEN_WIDTH//2 - inst_text1.get_width()//2, 350))
+        
+        # Display if face is loaded
+        if self.player.face_image:
+            face_loaded_text = font_inst.render("Face image loaded!", True, LIGHT_GREEN)
+            self.screen.blit(face_loaded_text, (SCREEN_WIDTH//2 - face_loaded_text.get_width()//2, 400))
+        else:
+            inst_text2 = font_inst.render("No face image loaded.", True, GRAY)
+            self.screen.blit(inst_text2, (SCREEN_WIDTH//2 - inst_text2.get_width()//2, 400))
+
     def restart_game(self):
         if self.score > self.high_score:
             self.high_score = self.score
@@ -659,6 +751,26 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                
+                if self.game_state == "enter_name":
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if self.upload_button_rect.collidepoint(event.pos):
+                            self.open_file_dialog_and_load_face()
+                        elif self.input_box_rect.collidepoint(event.pos):
+                            self.input_active = True
+                        else:
+                            self.input_active = False
+
+                    if event.type == pygame.KEYDOWN:
+                        if self.input_active:
+                            if event.key == pygame.K_RETURN:
+                                if self.player_name.strip():
+                                    self.game_state = "menu"
+                            elif event.key == pygame.K_BACKSPACE:
+                                self.player_name = self.player_name[:-1]
+                            else:
+                                if len(self.player_name) < 15: # Limit name length
+                                    self.player_name += event.unicode
                 
                 elif event.type == pygame.KEYDOWN:
                     if self.game_state == "menu":
@@ -680,7 +792,9 @@ class Game:
                 self.update_game()
             
             # Draw everything
-            if self.game_state == "menu":
+            if self.game_state == "enter_name":
+                self.draw_enter_name()
+            elif self.game_state == "menu":
                 self.draw_menu()
             elif self.game_state == "playing":
                 self.draw_game()
