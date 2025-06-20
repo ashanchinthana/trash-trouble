@@ -582,7 +582,7 @@ class Game:
     def draw_ui(self):
         # UI Background
         ui_surface = pygame.Surface((SCREEN_WIDTH, 60), pygame.SRCALPHA)
-        ui_surface.fill((0, 0, 0, 128))
+        ui_surface.fill((0, 0, 0, 12))
         self.screen.blit(ui_surface, (0, 0))
         
         font = pygame.font.Font(None, 32)
