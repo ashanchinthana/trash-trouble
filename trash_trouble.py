@@ -305,8 +305,9 @@ class Game:
         self.score = 0
         self.lives = 3
         self.level = 1
-        self.timer = 90  # Extended timer
+        self.timer = 180  # Extended timer for more play time
         self.game_state = "menu"
+        self.high_score = 0  # Track highest score in session
         
         # Power-up effects
         self.slow_time_timer = 0
@@ -535,7 +536,9 @@ class Game:
             "← → Arrow Keys: Move",
             "Spacebar: Drop trash",
             "",
-            "Press SPACE to Start"
+            "Press SPACE to Start",
+            "",
+            "Tip: Combo correct drops for bonus points!"
         ]
         
         for i, instruction in enumerate(instructions):
@@ -628,9 +631,25 @@ class Game:
     
     def draw_game_over(self):
         self.draw_background()
+        font = pygame.font.Font(None, 72)
+        over_text = font.render("GAME OVER", True, RED)
+        self.screen.blit(over_text, (SCREEN_WIDTH//2 - over_text.get_width()//2, 120))
+        font_small = pygame.font.Font(None, 40)
+        score_text = font_small.render(f"Your Score: {self.score}", True, YELLOW)
+        self.screen.blit(score_text, (SCREEN_WIDTH//2 - score_text.get_width()//2, 220))
+        high_score_text = font_small.render(f"High Score: {self.high_score}", True, ORANGE)
+        self.screen.blit(high_score_text, (SCREEN_WIDTH//2 - high_score_text.get_width()//2, 270))
+        tip_text = font_small.render("Press R to Restart or Q to Quit", True, WHITE)
+        self.screen.blit(tip_text, (SCREEN_WIDTH//2 - tip_text.get_width()//2, 340))
+        font_tip = pygame.font.Font(None, 32)
+        motivational = font_tip.render("Tip: Try to keep your combo going for max points!", True, GREEN)
+        self.screen.blit(motivational, (SCREEN_WIDTH//2 - motivational.get_width()//2, 400))
     
     def restart_game(self):
+        if self.score > self.high_score:
+            self.high_score = self.score
         self.__init__()
+        self.high_score = max(self.high_score, self.score)  # Retain high score
         self.game_state = "playing"
     
     def run(self):
