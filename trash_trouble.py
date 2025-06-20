@@ -1,139 +1,357 @@
 import pygame
 import random
 import sys
+import os
+import math
 
 # Initialize Pygame
 pygame.init()
+pygame.mixer.init()
 
 # Constants
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 900
+SCREEN_HEIGHT = 700
 FPS = 60
 
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-RED = (255, 0, 0)
-YELLOW = (255, 255, 0)
+GREEN = (34, 139, 34)
+BLUE = (30, 144, 255)
+RED = (220, 20, 60)
+YELLOW = (255, 215, 0)
 BROWN = (139, 69, 19)
 GRAY = (128, 128, 128)
-ORANGE = (255, 165, 0)
+ORANGE = (255, 140, 0)
+PURPLE = (147, 112, 219)
+PINK = (255, 192, 203)
+LIGHT_GREEN = (144, 238, 144)
+DARK_GREEN = (0, 100, 0)
 
 # Player settings
-PLAYER_WIDTH = 60
-PLAYER_HEIGHT = 80
-PLAYER_SPEED = 5
+PLAYER_WIDTH = 70
+PLAYER_HEIGHT = 90
+PLAYER_SPEED = 6
 
 # Trash settings
-TRASH_WIDTH = 30
-TRASH_HEIGHT = 30
-TRASH_SPEED = 2
+TRASH_WIDTH = 35
+TRASH_HEIGHT = 35
+TRASH_SPEED = 2.5
 
 # Bin settings
-BIN_WIDTH = 100
-BIN_HEIGHT = 80
+BIN_WIDTH = 110
+BIN_HEIGHT = 90
+
+# Particle system
+class Particle:
+    def __init__(self, x, y, color, velocity_x=0, velocity_y=0):
+        self.x = x
+        self.y = y
+        self.color = color
+        self.velocity_x = velocity_x
+        self.velocity_y = velocity_y
+        self.life = 30
+        self.max_life = 30
+        
+    def update(self):
+        self.x += self.velocity_x
+        self.y += self.velocity_y
+        self.velocity_y += 0.2  # gravity
+        self.life -= 1
+        
+    def draw(self, screen):
+        alpha = int(255 * (self.life / self.max_life))
+        color = (*self.color[:3], alpha)
+        size = int(5 * (self.life / self.max_life))
+        if size > 0:
+            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), size)
 
 class Player:
     def __init__(self):
         self.x = SCREEN_WIDTH // 2
-        self.y = SCREEN_HEIGHT - 150
+        self.y = SCREEN_HEIGHT - 180
         self.width = PLAYER_WIDTH
         self.height = PLAYER_HEIGHT
         self.speed = PLAYER_SPEED
         self.carrying_trash = None
+        self.animation_frame = 0
+        self.facing_right = True
         
     def move_left(self):
         if self.x > 0:
             self.x -= self.speed
+            self.facing_right = False
+            self.animation_frame += 0.2
     
     def move_right(self):
         if self.x < SCREEN_WIDTH - self.width:
             self.x += self.speed
+            self.facing_right = True
+            self.animation_frame += 0.2
     
     def draw(self, screen):
-        # Draw player as a simple robot
-        pygame.draw.rect(screen, BLUE, (self.x, self.y, self.width, self.height))
-        pygame.draw.rect(screen, WHITE, (self.x + 10, self.y + 10, 15, 15))  # Left eye
-        pygame.draw.rect(screen, WHITE, (self.x + 35, self.y + 10, 15, 15))  # Right eye
-        pygame.draw.rect(screen, RED, (self.x + 20, self.y + 35, 20, 10))   # Mouth
+        # Enhanced robot design with animation
+        body_color = BLUE
+        detail_color = WHITE
+        
+        # Body with slight animation bobbing
+        bob_offset = int(math.sin(self.animation_frame) * 2)
+        
+        # Main body
+        pygame.draw.rect(screen, body_color, 
+                        (self.x, self.y + bob_offset, self.width, self.height))
+        pygame.draw.rect(screen, BLACK, 
+                        (self.x, self.y + bob_offset, self.width, self.height), 3)
+        
+        # Head
+        pygame.draw.circle(screen, body_color, 
+                          (self.x + self.width//2, self.y + 20 + bob_offset), 25)
+        pygame.draw.circle(screen, BLACK, 
+                          (self.x + self.width//2, self.y + 20 + bob_offset), 25, 3)
+        
+        # Eyes
+        eye_y = self.y + 15 + bob_offset
+        if self.facing_right:
+            pygame.draw.circle(screen, detail_color, (self.x + 20, eye_y), 6)
+            pygame.draw.circle(screen, detail_color, (self.x + 40, eye_y), 6)
+            pygame.draw.circle(screen, BLACK, (self.x + 22, eye_y), 3)
+            pygame.draw.circle(screen, BLACK, (self.x + 42, eye_y), 3)
+        else:
+            pygame.draw.circle(screen, detail_color, (self.x + 20, eye_y), 6)
+            pygame.draw.circle(screen, detail_color, (self.x + 40, eye_y), 6)
+            pygame.draw.circle(screen, BLACK, (self.x + 18, eye_y), 3)
+            pygame.draw.circle(screen, BLACK, (self.x + 38, eye_y), 3)
+        
+        # Mouth
+        pygame.draw.arc(screen, RED, 
+                       (self.x + 15, self.y + 25 + bob_offset, 30, 15), 0, math.pi, 3)
+        
+        # Arms
+        arm_y = self.y + 35 + bob_offset
+        pygame.draw.rect(screen, body_color, (self.x - 10, arm_y, 15, 30))
+        pygame.draw.rect(screen, body_color, (self.x + self.width - 5, arm_y, 15, 30))
+        
+        # Legs
+        leg_y = self.y + self.height - 20 + bob_offset
+        pygame.draw.rect(screen, DARK_GREEN, (self.x + 10, leg_y, 15, 25))
+        pygame.draw.rect(screen, DARK_GREEN, (self.x + self.width - 25, leg_y, 15, 25))
 
 class TrashItem:
-    def __init__(self):
-        self.x = random.randint(0, SCREEN_WIDTH - TRASH_WIDTH)
+    def __init__(self, trash_type=None):
+        self.x = random.randint(50, SCREEN_WIDTH - TRASH_WIDTH - 50)
         self.y = -TRASH_HEIGHT
         self.width = TRASH_WIDTH
         self.height = TRASH_HEIGHT
         self.speed = TRASH_SPEED
+        self.rotation = 0
+        self.rotation_speed = random.uniform(-3, 3)
         
-        # Trash types: 0=Plastic, 1=Paper, 2=Organic
-        self.trash_type = random.randint(0, 2)
-        self.colors = [BLUE, WHITE, BROWN]  # Plastic=Blue, Paper=White, Organic=Brown
-        self.names = ["Plastic", "Paper", "Organic"]
+        # Extended trash types: 0=Plastic, 1=Paper, 2=Organic, 3=Metal, 4=Glass
+        if trash_type is None:
+            self.trash_type = random.randint(0, 4)
+        else:
+            self.trash_type = trash_type
+            
+        self.colors = [BLUE, WHITE, BROWN, GRAY, LIGHT_GREEN]
+        self.names = ["Plastic", "Paper", "Organic", "Metal", "Glass"]
+        self.icons = ["🥤", "📄", "🍌", "🥫", "🍶"]
         
     def update(self):
         self.y += self.speed
+        self.rotation += self.rotation_speed
         
     def draw(self, screen):
-        pygame.draw.rect(screen, self.colors[self.trash_type], 
-                        (self.x, self.y, self.width, self.height))
-        # Add a simple icon/text
-        font = pygame.font.Font(None, 16)
-        text = font.render(self.names[self.trash_type][0], True, BLACK)
-        screen.blit(text, (self.x + 10, self.y + 8))
+        # Create a surface for rotation
+        surf = pygame.Surface((self.width + 20, self.height + 20), pygame.SRCALPHA)
+        
+        # Draw trash item on the surface
+        color = self.colors[self.trash_type]
+        
+        if self.trash_type == 0:  # Plastic bottle
+            pygame.draw.rect(surf, color, (10, 5, 20, 30))
+            pygame.draw.rect(surf, color, (12, 2, 16, 8))
+        elif self.trash_type == 1:  # Paper
+            pygame.draw.rect(surf, color, (5, 5, 25, 30))
+            pygame.draw.lines(surf, BLACK, False, [(8, 10), (27, 10)], 2)
+            pygame.draw.lines(surf, BLACK, False, [(8, 15), (27, 15)], 2)
+        elif self.trash_type == 2:  # Organic (banana)
+            pygame.draw.ellipse(surf, YELLOW, (8, 5, 20, 30))
+            pygame.draw.arc(surf, BROWN, (8, 5, 20, 30), 0, math.pi, 3)
+        elif self.trash_type == 3:  # Metal can
+            pygame.draw.rect(surf, color, (8, 5, 20, 30))
+            pygame.draw.ellipse(surf, color, (8, 5, 20, 8))
+        elif self.trash_type == 4:  # Glass bottle
+            pygame.draw.rect(surf, color, (10, 10, 16, 25))
+            pygame.draw.rect(surf, color, (12, 5, 12, 10))
+        
+        # Add outline
+        pygame.draw.rect(surf, BLACK, (5, 5, 25, 30), 2)
+        
+        # Rotate the surface
+        rotated_surf = pygame.transform.rotate(surf, self.rotation)
+        
+        # Get the rect and center it
+        rect = rotated_surf.get_rect(center=(self.x + self.width//2, self.y + self.height//2))
+        screen.blit(rotated_surf, rect)
 
 class Bin:
     def __init__(self, x, bin_type):
         self.x = x
-        self.y = SCREEN_HEIGHT - BIN_HEIGHT - 10
+        self.y = SCREEN_HEIGHT - BIN_HEIGHT - 20
         self.width = BIN_WIDTH
         self.height = BIN_HEIGHT
         self.bin_type = bin_type
-        self.colors = [BLUE, WHITE, BROWN]
-        self.names = ["PLASTIC", "PAPER", "ORGANIC"]
+        self.colors = [BLUE, WHITE, BROWN, GRAY, LIGHT_GREEN]
+        self.names = ["PLASTIC", "PAPER", "ORGANIC", "METAL", "GLASS"]
+        self.glow = 0
         
     def draw(self, screen):
+        # Glow effect
+        glow_color = (*self.colors[self.bin_type][:3], 100)
+        if self.glow > 0:
+            pygame.draw.rect(screen, GREEN, 
+                           (self.x - 5, self.y - 5, self.width + 10, self.height + 10))
+            self.glow -= 1
+        
+        # Main bin
         pygame.draw.rect(screen, self.colors[self.bin_type], 
                         (self.x, self.y, self.width, self.height))
         pygame.draw.rect(screen, BLACK, 
-                        (self.x, self.y, self.width, self.height), 3)
+                        (self.x, self.y, self.width, self.height), 4)
         
-        # Label
-        font = pygame.font.Font(None, 24)
+        # 3D effect
+        pygame.draw.polygon(screen, tuple(max(0, c-30) for c in self.colors[self.bin_type][:3]),
+                          [(self.x, self.y), (self.x + 10, self.y - 10), 
+                           (self.x + self.width + 10, self.y - 10), (self.x + self.width, self.y)])
+        
+        # Lid
+        pygame.draw.ellipse(screen, tuple(min(255, c+20) for c in self.colors[self.bin_type][:3]),
+                          (self.x - 5, self.y - 15, self.width + 10, 20))
+        pygame.draw.ellipse(screen, BLACK, (self.x - 5, self.y - 15, self.width + 10, 20), 3)
+        
+        # Label with better font
+        font = pygame.font.Font(None, 20)
         text = font.render(self.names[self.bin_type], True, BLACK)
         text_rect = text.get_rect(center=(self.x + self.width//2, self.y + self.height//2))
+        screen.blit(text, text_rect)
+
+class PowerUp:
+    def __init__(self):
+        self.x = random.randint(50, SCREEN_WIDTH - 50)
+        self.y = -30
+        self.width = 40
+        self.height = 40
+        self.speed = 3
+        self.type = random.choice(['slow_time', 'extra_time', 'double_points', 'extra_life'])
+        self.colors = {
+            'slow_time': PURPLE,
+            'extra_time': YELLOW,
+            'double_points': ORANGE,
+            'extra_life': PINK
+        }
+        self.symbols = {
+            'slow_time': '⏰',
+            'extra_time': '⏲️',
+            'double_points': '×2',
+            'extra_life': '♥'
+        }
+        self.bounce = 0
+        
+    def update(self):
+        self.y += self.speed
+        self.bounce += 0.2
+        
+    def draw(self, screen):
+        bounce_offset = int(math.sin(self.bounce) * 3)
+        y_pos = self.y + bounce_offset
+        
+        # Glow effect
+        pygame.draw.circle(screen, (*self.colors[self.type][:3], 100), 
+                         (self.x + self.width//2, y_pos + self.height//2), 25)
+        
+        # Main power-up
+        pygame.draw.circle(screen, self.colors[self.type], 
+                         (self.x + self.width//2, y_pos + self.height//2), 20)
+        pygame.draw.circle(screen, WHITE, 
+                         (self.x + self.width//2, y_pos + self.height//2), 20, 3)
+        
+        # Symbol
+        font = pygame.font.Font(None, 24)
+        text = font.render(self.symbols[self.type], True, BLACK)
+        text_rect = text.get_rect(center=(self.x + self.width//2, y_pos + self.height//2))
         screen.blit(text, text_rect)
 
 class Game:
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Trash Trouble")
+        pygame.display.set_caption("Trash Trouble - Enhanced Edition")
         self.clock = pygame.time.Clock()
         
         self.player = Player()
         self.trash_items = []
+        self.power_ups = []
+        self.particles = []
+        
+        # 5 bins now for all trash types
+        bin_spacing = SCREEN_WIDTH // 6
         self.bins = [
-            Bin(50, 0),   # Plastic bin
-            Bin(350, 1),  # Paper bin
-            Bin(650, 2)   # Organic bin
+            Bin(bin_spacing - BIN_WIDTH//2, 0),      # Plastic
+            Bin(bin_spacing * 2 - BIN_WIDTH//2, 1),  # Paper
+            Bin(bin_spacing * 3 - BIN_WIDTH//2, 2),  # Organic
+            Bin(bin_spacing * 4 - BIN_WIDTH//2, 3),  # Metal
+            Bin(bin_spacing * 5 - BIN_WIDTH//2, 4),  # Glass
         ]
         
         self.score = 0
         self.lives = 3
         self.level = 1
-        self.timer = 60  # 60 seconds
-        self.game_state = "menu"  # menu, playing, game_over
+        self.timer = 90  # Extended timer
+        self.game_state = "menu"
         
-        # Spawn timer
+        # Power-up effects
+        self.slow_time_timer = 0
+        self.double_points_timer = 0
+        self.score_multiplier = 1
+        
+        # Spawn timers
         self.spawn_timer = 0
-        self.spawn_delay = 60  # frames between spawns
+        self.spawn_delay = 60
+        self.powerup_spawn_timer = 0
+        self.powerup_spawn_delay = 600  # 10 seconds
         
+        # Combo system
+        self.combo_count = 0
+        self.combo_timer = 0
+        
+        # Background elements
+        self.background_elements = []
+        for i in range(20):
+            self.background_elements.append({
+                'x': random.randint(0, SCREEN_WIDTH),
+                'y': random.randint(0, SCREEN_HEIGHT),
+                'size': random.randint(3, 8),
+                'color': random.choice([LIGHT_GREEN, WHITE, YELLOW]),
+                'speed': random.uniform(0.5, 2)
+            })
+    
+    def create_particles(self, x, y, color, count=5):
+        for _ in range(count):
+            velocity_x = random.uniform(-3, 3)
+            velocity_y = random.uniform(-5, -1)
+            self.particles.append(Particle(x, y, color, velocity_x, velocity_y))
+    
     def spawn_trash(self):
-        if len(self.trash_items) < 5:  # Limit trash on screen
+        if len(self.trash_items) < 6:
             new_trash = TrashItem()
-            new_trash.speed = TRASH_SPEED + (self.level - 1) * 0.5
+            speed_multiplier = 1.0
+            if self.slow_time_timer > 0:
+                speed_multiplier = 0.5
+            new_trash.speed = (TRASH_SPEED + (self.level - 1) * 0.3) * speed_multiplier
             self.trash_items.append(new_trash)
+    
+    def spawn_powerup(self):
+        if len(self.power_ups) < 1 and random.random() < 0.3:
+            self.power_ups.append(PowerUp())
     
     def check_collision(self, rect1_x, rect1_y, rect1_w, rect1_h, 
                        rect2_x, rect2_y, rect2_w, rect2_h):
@@ -151,85 +369,183 @@ class Game:
         if keys[pygame.K_RIGHT]:
             self.player.move_right()
         
+        # Update timers
+        if self.slow_time_timer > 0:
+            self.slow_time_timer -= 1
+        if self.double_points_timer > 0:
+            self.double_points_timer -= 1
+            self.score_multiplier = 2
+        else:
+            self.score_multiplier = 1
+        
+        if self.combo_timer > 0:
+            self.combo_timer -= 1
+        else:
+            self.combo_count = 0
+        
         # Spawn trash
         self.spawn_timer += 1
         if self.spawn_timer >= self.spawn_delay:
             self.spawn_trash()
             self.spawn_timer = 0
         
+        # Spawn power-ups
+        self.powerup_spawn_timer += 1
+        if self.powerup_spawn_timer >= self.powerup_spawn_delay:
+            self.spawn_powerup()
+            self.powerup_spawn_timer = 0
+        
         # Update trash items
         for trash in self.trash_items[:]:
             trash.update()
             
-            # Check if trash hits ground
-            if trash.y > SCREEN_HEIGHT - 100:
+            if trash.y > SCREEN_HEIGHT - 120:
                 self.trash_items.remove(trash)
                 self.lives -= 1
+                self.combo_count = 0
+                self.create_particles(trash.x, trash.y, RED, 3)
                 if self.lives <= 0:
                     self.game_state = "game_over"
             
-            # Check collision with player
             elif (self.player.carrying_trash is None and 
                   self.check_collision(self.player.x, self.player.y, self.player.width, self.player.height,
                                      trash.x, trash.y, trash.width, trash.height)):
                 self.player.carrying_trash = trash
                 self.trash_items.remove(trash)
         
+        # Update power-ups
+        for powerup in self.power_ups[:]:
+            powerup.update()
+            
+            if powerup.y > SCREEN_HEIGHT:
+                self.power_ups.remove(powerup)
+            elif self.check_collision(self.player.x, self.player.y, self.player.width, self.player.height,
+                                    powerup.x, powerup.y, powerup.width, powerup.height):
+                self.activate_powerup(powerup)
+                self.power_ups.remove(powerup)
+        
+        # Update particles
+        for particle in self.particles[:]:
+            particle.update()
+            if particle.life <= 0:
+                self.particles.remove(particle)
+        
+        # Update background
+        for element in self.background_elements:
+            element['y'] += element['speed']
+            if element['y'] > SCREEN_HEIGHT:
+                element['y'] = -10
+                element['x'] = random.randint(0, SCREEN_WIDTH)
+        
         # Timer countdown
-        self.timer -= 1/FPS
+        timer_speed = 1.0
+        if self.slow_time_timer > 0:
+            timer_speed = 0.5
+        self.timer -= timer_speed / FPS
+        
         if self.timer <= 0:
             self.game_state = "game_over"
         
         # Level progression
-        if self.score > 0 and self.score % 100 == 0:
-            self.level = self.score // 100 + 1
-            self.spawn_delay = max(30, 60 - (self.level - 1) * 5)
+        if self.score > 0 and self.score % 150 == 0:
+            self.level = self.score // 150 + 1
+            self.spawn_delay = max(25, 60 - (self.level - 1) * 4)
+    
+    def activate_powerup(self, powerup):
+        self.create_particles(powerup.x, powerup.y, powerup.colors[powerup.type], 8)
+        
+        if powerup.type == 'slow_time':
+            self.slow_time_timer = 300  # 5 seconds
+        elif powerup.type == 'extra_time':
+            self.timer += 15
+        elif powerup.type == 'double_points':
+            self.double_points_timer = 300  # 5 seconds
+        elif powerup.type == 'extra_life':
+            self.lives += 1
     
     def handle_drop(self):
         if self.player.carrying_trash:
-            # Check which bin the player is over
             for bin in self.bins:
                 if (self.player.x + self.player.width//2 >= bin.x and 
                     self.player.x + self.player.width//2 <= bin.x + bin.width):
                     
                     if self.player.carrying_trash.trash_type == bin.bin_type:
                         # Correct bin!
-                        self.score += 10
+                        points = 10 * self.score_multiplier
+                        self.combo_count += 1
+                        self.combo_timer = 180  # 3 seconds
+                        
+                        # Combo bonus
+                        if self.combo_count >= 3:
+                            points += self.combo_count * 2
+                        
+                        self.score += points
+                        bin.glow = 20
+                        self.create_particles(bin.x + bin.width//2, bin.y, GREEN, 8)
+                        
                     else:
                         # Wrong bin!
                         self.score = max(0, self.score - 5)
                         self.lives -= 1
+                        self.combo_count = 0
+                        self.create_particles(bin.x + bin.width//2, bin.y, RED, 5)
                         if self.lives <= 0:
                             self.game_state = "game_over"
                     
                     self.player.carrying_trash = None
                     break
     
-    def draw_menu(self):
-        self.screen.fill(GREEN)
+    def draw_background(self):
+        # Gradient background
+        for y in range(SCREEN_HEIGHT):
+            color_ratio = y / SCREEN_HEIGHT
+            r = int(135 + (175 - 135) * color_ratio)
+            g = int(206 + (238 - 206) * color_ratio)
+            b = int(235 + (255 - 235) * color_ratio)
+            pygame.draw.line(self.screen, (r, g, b), (0, y), (SCREEN_WIDTH, y))
         
-        # Title
-        font = pygame.font.Font(None, 72)
-        title = font.render("TRASH TROUBLE", True, BLACK)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH//2, 150))
-        self.screen.blit(title, title_rect)
+        # Background elements
+        for element in self.background_elements:
+            pygame.draw.circle(self.screen, element['color'], 
+                             (int(element['x']), int(element['y'])), element['size'])
+    
+    def draw_menu(self):
+        self.draw_background()
+        
+        # Title with shadow
+        font = pygame.font.Font(None, 84)
+        shadow = font.render("TRASH TROUBLE", True, BLACK)
+        title = font.render("TRASH TROUBLE", True, WHITE)
+        self.screen.blit(shadow, (SCREEN_WIDTH//2 - shadow.get_width()//2 + 3, 103))
+        self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 100))
+        
+        # Subtitle
+        font = pygame.font.Font(None, 36)
+        subtitle = font.render("Enhanced Edition", True, YELLOW)
+        self.screen.blit(subtitle, (SCREEN_WIDTH//2 - subtitle.get_width()//2, 180))
         
         # Instructions
-        font = pygame.font.Font(None, 36)
+        font = pygame.font.Font(None, 32)
         instructions = [
-            "Sort the falling trash into correct bins!",
-            "Arrow Keys: Move",
+            "Sort falling trash into correct bins!",
+            "5 types: Plastic, Paper, Organic, Metal, Glass",
+            "Collect power-ups for special effects!",
+            "",
+            "Controls:",
+            "← → Arrow Keys: Move",
             "Spacebar: Drop trash",
+            "",
             "Press SPACE to Start"
         ]
         
         for i, instruction in enumerate(instructions):
-            text = font.render(instruction, True, BLACK)
-            text_rect = text.get_rect(center=(SCREEN_WIDTH//2, 250 + i * 50))
-            self.screen.blit(text, text_rect)
+            if instruction:
+                color = WHITE if not instruction.startswith("Press") else YELLOW
+                text = font.render(instruction, True, color)
+                self.screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, 220 + i * 35))
     
     def draw_game(self):
-        self.screen.fill(GREEN)
+        self.draw_background()
         
         # Draw bins
         for bin in self.bins:
@@ -239,45 +555,79 @@ class Game:
         for trash in self.trash_items:
             trash.draw(self.screen)
         
+        # Draw power-ups
+        for powerup in self.power_ups:
+            powerup.draw(self.screen)
+        
+        # Draw particles
+        for particle in self.particles:
+            particle.draw(self.screen)
+        
         # Draw player
         self.player.draw(self.screen)
         
         # Draw carried trash
         if self.player.carrying_trash:
             carried_trash = self.player.carrying_trash
-            carried_trash.x = self.player.x + 15
-            carried_trash.y = self.player.y - 40
+            carried_trash.x = self.player.x + 17
+            carried_trash.y = self.player.y - 45
             carried_trash.draw(self.screen)
         
-        # Draw UI
-        font = pygame.font.Font(None, 36)
-        score_text = font.render(f"Score: {self.score}", True, BLACK)
-        lives_text = font.render(f"Lives: {self.lives}", True, BLACK)
-        level_text = font.render(f"Level: {self.level}", True, BLACK)
-        timer_text = font.render(f"Time: {int(self.timer)}", True, BLACK)
+        # Enhanced UI
+        self.draw_ui()
+    
+    def draw_ui(self):
+        # UI Background
+        ui_surface = pygame.Surface((SCREEN_WIDTH, 60), pygame.SRCALPHA)
+        ui_surface.fill((0, 0, 0, 128))
+        self.screen.blit(ui_surface, (0, 0))
         
-        self.screen.blit(score_text, (10, 10))
-        self.screen.blit(lives_text, (10, 50))
-        self.screen.blit(level_text, (10, 90))
-        self.screen.blit(timer_text, (SCREEN_WIDTH - 150, 10))
+        font = pygame.font.Font(None, 32)
+        
+        # Score with multiplier
+        score_text = f"Score: {self.score}"
+        if self.score_multiplier > 1:
+            score_text += f" (×{self.score_multiplier})"
+        score_surface = font.render(score_text, True, YELLOW)
+        self.screen.blit(score_surface, (10, 10))
+        
+        # Lives with hearts
+        lives_text = "Lives: "
+        lives_surface = font.render(lives_text, True, WHITE)
+        self.screen.blit(lives_surface, (10, 40))
+        for i in range(self.lives):
+            heart_x = 80 + i * 25
+            pygame.draw.circle(self.screen, RED, (heart_x, 50), 8)
+        
+        # Level
+        level_surface = font.render(f"Level: {self.level}", True, WHITE)
+        self.screen.blit(level_surface, (250, 10))
+        
+        # Timer with color coding
+        timer_color = WHITE if self.timer > 20 else RED
+        timer_surface = font.render(f"Time: {int(self.timer)}", True, timer_color)
+        self.screen.blit(timer_surface, (SCREEN_WIDTH - 150, 10))
+        
+        # Combo counter
+        if self.combo_count > 1:
+            combo_surface = font.render(f"Combo: {self.combo_count}×", True, ORANGE)
+            self.screen.blit(combo_surface, (SCREEN_WIDTH - 200, 40))
+        
+        # Active power-ups
+        powerup_y = 70
+        font_small = pygame.font.Font(None, 24)
+        
+        if self.slow_time_timer > 0:
+            text = font_small.render(f"Slow Time: {self.slow_time_timer//60 + 1}s", True, PURPLE)
+            self.screen.blit(text, (10, powerup_y))
+            powerup_y += 25
+            
+        if self.double_points_timer > 0:
+            text = font_small.render(f"Double Points: {self.double_points_timer//60 + 1}s", True, ORANGE)
+            self.screen.blit(text, (10, powerup_y))
     
     def draw_game_over(self):
-        self.screen.fill(RED)
-        
-        font = pygame.font.Font(None, 72)
-        game_over_text = font.render("GAME OVER", True, WHITE)
-        game_over_rect = game_over_text.get_rect(center=(SCREEN_WIDTH//2, 200))
-        self.screen.blit(game_over_text, game_over_rect)
-        
-        font = pygame.font.Font(None, 48)
-        final_score = font.render(f"Final Score: {self.score}", True, WHITE)
-        score_rect = final_score.get_rect(center=(SCREEN_WIDTH//2, 300))
-        self.screen.blit(final_score, score_rect)
-        
-        font = pygame.font.Font(None, 36)
-        restart_text = font.render("Press R to Restart or Q to Quit", True, WHITE)
-        restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH//2, 400))
-        self.screen.blit(restart_text, restart_rect)
+        self.draw_background()
     
     def restart_game(self):
         self.__init__()
@@ -306,7 +656,7 @@ class Game:
                         elif event.key == pygame.K_q:
                             running = False
             
-            # Update game logic
+            # Update game state
             if self.game_state == "playing":
                 self.update_game()
             
