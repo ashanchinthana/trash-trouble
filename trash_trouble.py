@@ -28,6 +28,8 @@ PURPLE = (147, 112, 219)
 PINK = (255, 192, 203)
 LIGHT_GREEN = (144, 238, 144)
 DARK_GREEN = (0, 100, 0)
+LIGHT_BLUE = (173, 216, 230)
+SILVER = (192, 192, 192)
 
 # Player settings
 PLAYER_WIDTH = 70
@@ -62,7 +64,6 @@ class Particle:
         
     def draw(self, screen):
         alpha = int(255 * (self.life / self.max_life))
-        color = (*self.color[:3], alpha)
         size = int(5 * (self.life / self.max_life))
         if size > 0:
             pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), size)
@@ -92,57 +93,118 @@ class Player:
             self.animation_frame += 0.2
     
     def draw(self, screen):
-        # Enhanced robot design with animation
-        body_color = BLUE
+        # Enhanced robot design similar to the image
+        body_color = LIGHT_BLUE
         detail_color = WHITE
+        outline_color = BLACK
         
         # Body with slight animation bobbing
-        bob_offset = int(math.sin(self.animation_frame) * 2)
+        bob_offset = int(math.sin(self.animation_frame) * 1.5)
         
-        # Main body
-        pygame.draw.rect(screen, body_color, 
-                        (self.x, self.y + bob_offset, self.width, self.height))
-        pygame.draw.rect(screen, BLACK, 
-                        (self.x, self.y + bob_offset, self.width, self.height), 3)
+        # Main body (more rounded rectangle)
+        body_rect = pygame.Rect(self.x + 5, self.y + 35 + bob_offset, self.width - 10, self.height - 45)
+        pygame.draw.rect(screen, body_color, body_rect, border_radius=8)
+        pygame.draw.rect(screen, outline_color, body_rect, 3, border_radius=8)
         
-        # Head
+        # Head (perfect circle like in the image)
+        head_center_x = self.x + self.width // 2
+        head_center_y = self.y + 25 + bob_offset
+        head_radius = 22
+        
+        # Head shadow for depth
+        pygame.draw.circle(screen, (150, 150, 150), (head_center_x + 2, head_center_y + 2), head_radius)
+        pygame.draw.circle(screen, WHITE, (head_center_x, head_center_y), head_radius)
+        pygame.draw.circle(screen, outline_color, (head_center_x, head_center_y), head_radius, 3)
+        
+        # Custom face or default face
         if self.face_image:
-            # Blit custom face
-            face_rect = self.face_image.get_rect(center=(self.x + self.width // 2, self.y + 20 + bob_offset))
-            screen.blit(self.face_image, face_rect)
+            # Scale face image to fit in head
+            face_size = int(head_radius * 1.6)
+            scaled_face = pygame.transform.scale(self.face_image, (face_size, face_size))
+            face_rect = scaled_face.get_rect(center=(head_center_x, head_center_y))
+            
+            # Create a circular mask for the face
+            mask_surface = pygame.Surface((face_size, face_size), pygame.SRCALPHA)
+            pygame.draw.circle(mask_surface, (255, 255, 255, 255), (face_size//2, face_size//2), face_size//2 - 2)
+            
+            # Apply mask to face image
+            face_masked = scaled_face.copy()
+            face_masked.blit(mask_surface, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2)
+            screen.blit(face_masked, face_rect)
         else:
-            # Draw original face if no image
-            pygame.draw.circle(screen, body_color, 
-                              (self.x + self.width//2, self.y + 20 + bob_offset), 25)
-            pygame.draw.circle(screen, BLACK, 
-                              (self.x + self.width//2, self.y + 20 + bob_offset), 25, 3)
-            
+            # Default robot face
             # Eyes
-            eye_y = self.y + 15 + bob_offset
-            if self.facing_right:
-                pygame.draw.circle(screen, detail_color, (self.x + 20, eye_y), 6)
-                pygame.draw.circle(screen, detail_color, (self.x + 40, eye_y), 6)
-                pygame.draw.circle(screen, BLACK, (self.x + 22, eye_y), 3)
-                pygame.draw.circle(screen, BLACK, (self.x + 42, eye_y), 3)
-            else:
-                pygame.draw.circle(screen, detail_color, (self.x + 20, eye_y), 6)
-                pygame.draw.circle(screen, detail_color, (self.x + 40, eye_y), 6)
-                pygame.draw.circle(screen, BLACK, (self.x + 18, eye_y), 3)
-                pygame.draw.circle(screen, BLACK, (self.x + 38, eye_y), 3)
+            eye_y = head_center_y - 5
+            left_eye_x = head_center_x - 8
+            right_eye_x = head_center_x + 8
             
-            # Mouth
-            pygame.draw.arc(screen, RED, 
-                           (self.x + 15, self.y + 25 + bob_offset, 30, 15), 0, math.pi, 3)
+            # Eye whites
+            pygame.draw.circle(screen, WHITE, (left_eye_x, eye_y), 6)
+            pygame.draw.circle(screen, WHITE, (right_eye_x, eye_y), 6)
+            pygame.draw.circle(screen, BLACK, (left_eye_x, eye_y), 6, 2)
+            pygame.draw.circle(screen, BLACK, (right_eye_x, eye_y), 6, 2)
+            
+            # Eye pupils (look in direction of movement)
+            pupil_offset = 2 if self.facing_right else -2
+            pygame.draw.circle(screen, BLACK, (left_eye_x + pupil_offset, eye_y), 3)
+            pygame.draw.circle(screen, BLACK, (right_eye_x + pupil_offset, eye_y), 3)
+            
+            # Mouth (friendly smile)
+            mouth_rect = pygame.Rect(head_center_x - 8, head_center_y + 5, 16, 8)
+            pygame.draw.arc(screen, BLACK, mouth_rect, 0, math.pi, 3)
         
-        # Arms
-        arm_y = self.y + 35 + bob_offset
-        pygame.draw.rect(screen, body_color, (self.x - 10, arm_y, 15, 30))
-        pygame.draw.rect(screen, body_color, (self.x + self.width - 5, arm_y, 15, 30))
+        # Body details
+        # Chest panel
+        chest_rect = pygame.Rect(self.x + 15, self.y + 45 + bob_offset, self.width - 30, 25)
+        pygame.draw.rect(screen, SILVER, chest_rect, border_radius=4)
+        pygame.draw.rect(screen, outline_color, chest_rect, 2, border_radius=4)
         
-        # Legs
-        leg_y = self.y + self.height - 20 + bob_offset
-        pygame.draw.rect(screen, DARK_GREEN, (self.x + 10, leg_y, 15, 25))
-        pygame.draw.rect(screen, DARK_GREEN, (self.x + self.width - 25, leg_y, 15, 25))
+        # Chest lights/buttons
+        light_y = self.y + 52 + bob_offset
+        pygame.draw.circle(screen, GREEN, (self.x + 25, light_y), 3)
+        pygame.draw.circle(screen, RED, (self.x + 35, light_y), 3)
+        pygame.draw.circle(screen, YELLOW, (self.x + 45, light_y), 3)
+        
+        # Arms (more geometric)
+        arm_y = self.y + 40 + bob_offset
+        arm_width = 12
+        arm_height = 35
+        
+        # Left arm
+        left_arm_rect = pygame.Rect(self.x - 8, arm_y, arm_width, arm_height)
+        pygame.draw.rect(screen, body_color, left_arm_rect, border_radius=6)
+        pygame.draw.rect(screen, outline_color, left_arm_rect, 2, border_radius=6)
+        
+        # Right arm
+        right_arm_rect = pygame.Rect(self.x + self.width - 4, arm_y, arm_width, arm_height)
+        pygame.draw.rect(screen, body_color, right_arm_rect, border_radius=6)
+        pygame.draw.rect(screen, outline_color, right_arm_rect, 2, border_radius=6)
+        
+        # Hands
+        pygame.draw.circle(screen, body_color, (self.x - 2, arm_y + arm_height), 6)
+        pygame.draw.circle(screen, outline_color, (self.x - 2, arm_y + arm_height), 6, 2)
+        pygame.draw.circle(screen, body_color, (self.x + self.width + 6, arm_y + arm_height), 6)
+        pygame.draw.circle(screen, outline_color, (self.x + self.width + 6, arm_y + arm_height), 6, 2)
+        
+        # Legs (more defined)
+        leg_y = self.y + self.height - 25 + bob_offset
+        leg_width = 15
+        leg_height = 20
+        
+        # Left leg
+        left_leg_rect = pygame.Rect(self.x + 15, leg_y, leg_width, leg_height)
+        pygame.draw.rect(screen, DARK_GREEN, left_leg_rect, border_radius=4)
+        pygame.draw.rect(screen, outline_color, left_leg_rect, 2, border_radius=4)
+        
+        # Right leg
+        right_leg_rect = pygame.Rect(self.x + self.width - 30, leg_y, leg_width, leg_height)
+        pygame.draw.rect(screen, DARK_GREEN, right_leg_rect, border_radius=4)
+        pygame.draw.rect(screen, outline_color, right_leg_rect, 2, border_radius=4)
+        
+        # Feet
+        foot_y = leg_y + leg_height - 2
+        pygame.draw.ellipse(screen, BLACK, (self.x + 10, foot_y, 20, 8))
+        pygame.draw.ellipse(screen, BLACK, (self.x + self.width - 30, foot_y, 20, 8))
 
 class TrashItem:
     def __init__(self, trash_type=None):
@@ -215,7 +277,6 @@ class Bin:
         
     def draw(self, screen):
         # Glow effect
-        glow_color = (*self.colors[self.bin_type][:3], 100)
         if self.glow > 0:
             pygame.draw.rect(screen, GREEN, 
                            (self.x - 5, self.y - 5, self.width + 10, self.height + 10))
@@ -292,7 +353,7 @@ class PowerUp:
 class Game:
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Trash Trouble - Enhanced Edition")
+        pygame.display.set_caption("Trash Trouble - Enhanced Robot Edition")
         self.clock = pygame.time.Clock()
         
         self.player = Player()
@@ -322,7 +383,8 @@ class Game:
         
         # Define rects for input elements
         self.input_box_rect = pygame.Rect(SCREEN_WIDTH//2 - 150, 180, 300, 50)
-        self.upload_button_rect = pygame.Rect(SCREEN_WIDTH//2 - 150, 260, 300, 50)
+        self.upload_button_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, 260, 200, 50)
+        self.reset_face_button_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, 320, 200, 50)
         
         self.player_face_image = self.load_player_face()
         if self.player_face_image:
@@ -360,8 +422,8 @@ class Game:
         root = Tk()
         root.withdraw()  # Hide the main Tkinter window
         file_path = filedialog.askopenfilename(
-            title="Select a face image for your character",
-            filetypes=[("Image Files", "*.png *.jpg *.jpeg")]
+            title="Select a face image for your robot",
+            filetypes=[("Image Files", "*.png *.jpg *.jpeg *.bmp *.gif")]
         )
         root.destroy()
         
@@ -369,23 +431,37 @@ class Game:
             self.player_face_image = self.load_player_face(file_path)
             if self.player_face_image:
                 self.player.face_image = self.player_face_image
+                print(f"Face image loaded successfully from: {file_path}")
+            else:
+                print("Failed to load face image")
 
     def load_player_face(self, file_path=None):
         try:
             path_to_load = file_path
             if not path_to_load:
-                if os.path.exists("face.png"):
-                    path_to_load = "face.png"
-                elif os.path.exists("face.jpg"):
-                    path_to_load = "face.jpg"
+                # Try common file names in the game directory
+                for filename in ["face.png", "face.jpg", "face.jpeg", "robot_face.png", "my_face.png"]:
+                    if os.path.exists(filename):
+                        path_to_load = filename
+                        break
                 
             if path_to_load:
+                print(f"Loading face image from: {path_to_load}")
                 image = pygame.image.load(path_to_load).convert_alpha()
-                image = pygame.transform.scale(image, (40, 40))
+                # Keep original aspect ratio but scale to fit
+                original_size = image.get_size()
+                max_size = 50
+                scale_factor = min(max_size / original_size[0], max_size / original_size[1])
+                new_size = (int(original_size[0] * scale_factor), int(original_size[1] * scale_factor))
+                image = pygame.transform.scale(image, new_size)
                 return image
         except Exception as e:
             print(f"Could not load custom face image: {e}")
         return None
+    
+    def reset_face(self):
+        self.player.face_image = None
+        print("Robot face reset to default")
     
     def create_particles(self, x, y, color, count=5):
         for _ in range(count):
@@ -574,7 +650,7 @@ class Game:
         
         # Subtitle
         font = pygame.font.Font(None, 36)
-        subtitle = font.render("Enhanced Edition", True, YELLOW)
+        subtitle = font.render("Enhanced Robot Edition", True, YELLOW)
         self.screen.blit(subtitle, (SCREEN_WIDTH//2 - subtitle.get_width()//2, 180))
         
         # Instructions
@@ -634,7 +710,7 @@ class Game:
     def draw_ui(self):
         # UI Background
         ui_surface = pygame.Surface((SCREEN_WIDTH, 60), pygame.SRCALPHA)
-        ui_surface.fill((0, 0, 0, 12))
+        ui_surface.fill((0, 0, 0, 120))
         self.screen.blit(ui_surface, (0, 0))
         
         font = pygame.font.Font(None, 32)
@@ -708,8 +784,8 @@ class Game:
         font_inst = pygame.font.Font(None, 28)
 
         # Title
-        title_text = font_title.render("Create Your Player", True, WHITE)
-        self.screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, 100))
+        title_text = font_title.render("Create Your Robot", True, WHITE)
+        self.screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, 80))
         
         # Input Box
         input_box_color = YELLOW if self.input_active else WHITE
@@ -721,27 +797,52 @@ class Game:
         
         # Upload button
         pygame.draw.rect(self.screen, ORANGE, self.upload_button_rect)
-        upload_text_font = pygame.font.Font(None, 36)
+        upload_text_font = pygame.font.Font(None, 28)
         upload_text = upload_text_font.render("Upload Face Image", True, BLACK)
-        self.screen.blit(upload_text, (self.upload_button_rect.x + (self.upload_button_rect.width - upload_text.get_width()) // 2, self.upload_button_rect.y + 10))
+        text_rect = upload_text.get_rect(center=self.upload_button_rect.center)
+        self.screen.blit(upload_text, text_rect)
+        
+        # Reset face button
+        pygame.draw.rect(self.screen, RED, self.reset_face_button_rect)
+        reset_text = upload_text_font.render("Reset to Default", True, WHITE)
+        reset_rect = reset_text.get_rect(center=self.reset_face_button_rect.center)
+        self.screen.blit(reset_text, reset_rect)
         
         # Instructions
         inst_text1 = font_inst.render("Type your name and press ENTER to start", True, WHITE)
-        self.screen.blit(inst_text1, (SCREEN_WIDTH//2 - inst_text1.get_width()//2, 350))
+        self.screen.blit(inst_text1, (SCREEN_WIDTH//2 - inst_text1.get_width()//2, 390))
         
-        # Display if face is loaded
+        # Face status
         if self.player.face_image:
-            face_loaded_text = font_inst.render("Face image loaded!", True, LIGHT_GREEN)
-            self.screen.blit(face_loaded_text, (SCREEN_WIDTH//2 - face_loaded_text.get_width()//2, 400))
+            face_loaded_text = font_inst.render("✓ Custom face loaded!", True, LIGHT_GREEN)
+            self.screen.blit(face_loaded_text, (SCREEN_WIDTH//2 - face_loaded_text.get_width()//2, 420))
         else:
-            inst_text2 = font_inst.render("No face image loaded.", True, GRAY)
-            self.screen.blit(inst_text2, (SCREEN_WIDTH//2 - inst_text2.get_width()//2, 400))
+            inst_text2 = font_inst.render("Using default robot face", True, GRAY)
+            self.screen.blit(inst_text2, (SCREEN_WIDTH//2 - inst_text2.get_width()//2, 420))
+        
+        # Show preview of robot
+        preview_player = Player()
+        preview_player.x = SCREEN_WIDTH//2 - 35
+        preview_player.y = 450
+        preview_player.face_image = self.player.face_image
+        preview_player.draw(self.screen)
+        
+        preview_label = font_inst.render("Preview:", True, WHITE)
+        self.screen.blit(preview_label, (SCREEN_WIDTH//2 - 80, 435))
 
     def restart_game(self):
         if self.score > self.high_score:
             self.high_score = self.score
+        
+        # Keep face image and name
+        face_image = self.player.face_image
+        player_name = self.player_name
+        high_score = self.high_score
+        
         self.__init__()
-        self.high_score = max(self.high_score, self.score)  # Retain high score
+        self.player_name = player_name
+        self.player.face_image = face_image
+        self.high_score = high_score
         self.game_state = "playing"
     
     def run(self):
@@ -756,6 +857,8 @@ class Game:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         if self.upload_button_rect.collidepoint(event.pos):
                             self.open_file_dialog_and_load_face()
+                        elif self.reset_face_button_rect.collidepoint(event.pos):
+                            self.reset_face()
                         elif self.input_box_rect.collidepoint(event.pos):
                             self.input_active = True
                         else:
