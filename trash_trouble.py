@@ -30,20 +30,21 @@ LIGHT_GREEN = (144, 238, 144)
 DARK_GREEN = (0, 100, 0)
 LIGHT_BLUE = (173, 216, 230)
 SILVER = (192, 192, 192)
+CREAM = (245, 245, 220)
 
 # Player settings
-PLAYER_WIDTH = 70
-PLAYER_HEIGHT = 90
+PLAYER_WIDTH = 60
+PLAYER_HEIGHT = 80
 PLAYER_SPEED = 6
 
 # Trash settings
-TRASH_WIDTH = 35
-TRASH_HEIGHT = 35
+TRASH_WIDTH = 30
+TRASH_HEIGHT = 30
 TRASH_SPEED = 2.5
 
 # Bin settings
-BIN_WIDTH = 110
-BIN_HEIGHT = 90
+BIN_WIDTH = 100
+BIN_HEIGHT = 80
 
 # Particle system
 class Particle:
@@ -70,8 +71,8 @@ class Particle:
 
 class Player:
     def __init__(self):
-        self.x = SCREEN_WIDTH // 2
-        self.y = SCREEN_HEIGHT - 180
+        self.x = SCREEN_WIDTH // 2 - PLAYER_WIDTH // 2
+        self.y = SCREEN_HEIGHT - 200
         self.width = PLAYER_WIDTH
         self.height = PLAYER_HEIGHT
         self.speed = PLAYER_SPEED
@@ -93,118 +94,96 @@ class Player:
             self.animation_frame += 0.2
     
     def draw(self, screen):
-        # Enhanced robot design similar to the image
-        body_color = LIGHT_BLUE
-        detail_color = WHITE
+        # Clean robot design like the reference image
+        body_color = WHITE
         outline_color = BLACK
         
         # Body with slight animation bobbing
-        bob_offset = int(math.sin(self.animation_frame) * 1.5)
+        bob_offset = int(math.sin(self.animation_frame) * 1)
         
-        # Main body (more rounded rectangle)
-        body_rect = pygame.Rect(self.x + 5, self.y + 35 + bob_offset, self.width - 10, self.height - 45)
-        pygame.draw.rect(screen, body_color, body_rect, border_radius=8)
-        pygame.draw.rect(screen, outline_color, body_rect, 3, border_radius=8)
-        
-        # Head (perfect circle like in the image)
+        # Head (large white circle)
         head_center_x = self.x + self.width // 2
-        head_center_y = self.y + 25 + bob_offset
-        head_radius = 22
+        head_center_y = self.y + 20 + bob_offset
+        head_radius = 18
         
-        # Head shadow for depth
-        pygame.draw.circle(screen, (150, 150, 150), (head_center_x + 2, head_center_y + 2), head_radius)
-        pygame.draw.circle(screen, WHITE, (head_center_x, head_center_y), head_radius)
-        pygame.draw.circle(screen, outline_color, (head_center_x, head_center_y), head_radius, 3)
+        # Head
+        pygame.draw.circle(screen, body_color, (head_center_x, head_center_y), head_radius)
+        pygame.draw.circle(screen, outline_color, (head_center_x, head_center_y), head_radius, 2)
         
         # Custom face or default face
         if self.face_image:
-            # Scale face image to fit in head
-            face_size = int(head_radius * 1.6)
+            # Create a circular surface for the face
+            face_surface = pygame.Surface((head_radius * 2 - 6, head_radius * 2 - 6), pygame.SRCALPHA)
+            
+            # Scale the face image to fit the circle
+            face_size = head_radius * 2 - 6
             scaled_face = pygame.transform.scale(self.face_image, (face_size, face_size))
-            face_rect = scaled_face.get_rect(center=(head_center_x, head_center_y))
             
-            # Create a circular mask for the face
-            mask_surface = pygame.Surface((face_size, face_size), pygame.SRCALPHA)
-            pygame.draw.circle(mask_surface, (255, 255, 255, 255), (face_size//2, face_size//2), face_size//2 - 2)
+            # Create circular mask
+            mask = pygame.Surface((face_size, face_size), pygame.SRCALPHA)
+            pygame.draw.circle(mask, (255, 255, 255, 255), (face_size//2, face_size//2), face_size//2)
             
-            # Apply mask to face image
-            face_masked = scaled_face.copy()
-            face_masked.blit(mask_surface, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2)
-            screen.blit(face_masked, face_rect)
+            # Apply mask to the scaled face
+            face_surface.blit(scaled_face, (0, 0))
+            face_surface.blit(mask, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2)
+            
+            # Draw the masked face
+            face_rect = face_surface.get_rect(center=(head_center_x, head_center_y))
+            screen.blit(face_surface, face_rect)
         else:
-            # Default robot face
-            # Eyes
-            eye_y = head_center_y - 5
-            left_eye_x = head_center_x - 8
-            right_eye_x = head_center_x + 8
+            # Default robot eyes (simple black dots)
+            eye_y = head_center_y - 3
+            left_eye_x = head_center_x - 6
+            right_eye_x = head_center_x + 6
             
-            # Eye whites
-            pygame.draw.circle(screen, WHITE, (left_eye_x, eye_y), 6)
-            pygame.draw.circle(screen, WHITE, (right_eye_x, eye_y), 6)
-            pygame.draw.circle(screen, BLACK, (left_eye_x, eye_y), 6, 2)
-            pygame.draw.circle(screen, BLACK, (right_eye_x, eye_y), 6, 2)
-            
-            # Eye pupils (look in direction of movement)
-            pupil_offset = 2 if self.facing_right else -2
-            pygame.draw.circle(screen, BLACK, (left_eye_x + pupil_offset, eye_y), 3)
-            pygame.draw.circle(screen, BLACK, (right_eye_x + pupil_offset, eye_y), 3)
-            
-            # Mouth (friendly smile)
-            mouth_rect = pygame.Rect(head_center_x - 8, head_center_y + 5, 16, 8)
-            pygame.draw.arc(screen, BLACK, mouth_rect, 0, math.pi, 3)
+            pygame.draw.circle(screen, BLACK, (left_eye_x, eye_y), 3)
+            pygame.draw.circle(screen, BLACK, (right_eye_x, eye_y), 3)
         
-        # Body details
+        # Body (rounded rectangle)
+        body_rect = pygame.Rect(self.x + 8, self.y + 35 + bob_offset, self.width - 16, self.height - 45)
+        pygame.draw.rect(screen, LIGHT_BLUE, body_rect, border_radius=8)
+        pygame.draw.rect(screen, outline_color, body_rect, 2, border_radius=8)
+        
         # Chest panel
-        chest_rect = pygame.Rect(self.x + 15, self.y + 45 + bob_offset, self.width - 30, 25)
-        pygame.draw.rect(screen, SILVER, chest_rect, border_radius=4)
-        pygame.draw.rect(screen, outline_color, chest_rect, 2, border_radius=4)
+        chest_rect = pygame.Rect(self.x + 15, self.y + 42 + bob_offset, self.width - 30, 15)
+        pygame.draw.rect(screen, CREAM, chest_rect, border_radius=3)
+        pygame.draw.rect(screen, outline_color, chest_rect, 1, border_radius=3)
         
-        # Chest lights/buttons
-        light_y = self.y + 52 + bob_offset
-        pygame.draw.circle(screen, GREEN, (self.x + 25, light_y), 3)
-        pygame.draw.circle(screen, RED, (self.x + 35, light_y), 3)
-        pygame.draw.circle(screen, YELLOW, (self.x + 45, light_y), 3)
+        # Simple chest lights
+        light_y = self.y + 49 + bob_offset
+        pygame.draw.circle(screen, GREEN, (self.x + 22, light_y), 2)
+        pygame.draw.circle(screen, RED, (self.x + 30, light_y), 2)
+        pygame.draw.circle(screen, YELLOW, (self.x + 38, light_y), 2)
         
-        # Arms (more geometric)
-        arm_y = self.y + 40 + bob_offset
-        arm_width = 12
-        arm_height = 35
+        # Arms (simple rectangles)
+        arm_y = self.y + 38 + bob_offset
+        arm_width = 8
+        arm_height = 25
         
         # Left arm
-        left_arm_rect = pygame.Rect(self.x - 8, arm_y, arm_width, arm_height)
-        pygame.draw.rect(screen, body_color, left_arm_rect, border_radius=6)
-        pygame.draw.rect(screen, outline_color, left_arm_rect, 2, border_radius=6)
+        left_arm_rect = pygame.Rect(self.x - 2, arm_y, arm_width, arm_height)
+        pygame.draw.rect(screen, body_color, left_arm_rect, border_radius=4)
+        pygame.draw.rect(screen, outline_color, left_arm_rect, 2, border_radius=4)
         
         # Right arm
-        right_arm_rect = pygame.Rect(self.x + self.width - 4, arm_y, arm_width, arm_height)
-        pygame.draw.rect(screen, body_color, right_arm_rect, border_radius=6)
-        pygame.draw.rect(screen, outline_color, right_arm_rect, 2, border_radius=6)
+        right_arm_rect = pygame.Rect(self.x + self.width - 6, arm_y, arm_width, arm_height)
+        pygame.draw.rect(screen, body_color, right_arm_rect, border_radius=4)
+        pygame.draw.rect(screen, outline_color, right_arm_rect, 2, border_radius=4)
         
-        # Hands
-        pygame.draw.circle(screen, body_color, (self.x - 2, arm_y + arm_height), 6)
-        pygame.draw.circle(screen, outline_color, (self.x - 2, arm_y + arm_height), 6, 2)
-        pygame.draw.circle(screen, body_color, (self.x + self.width + 6, arm_y + arm_height), 6)
-        pygame.draw.circle(screen, outline_color, (self.x + self.width + 6, arm_y + arm_height), 6, 2)
-        
-        # Legs (more defined)
-        leg_y = self.y + self.height - 25 + bob_offset
-        leg_width = 15
-        leg_height = 20
+        # Legs (simple rectangles)
+        leg_y = self.y + self.height - 20 + bob_offset
+        leg_width = 12
+        leg_height = 16
         
         # Left leg
-        left_leg_rect = pygame.Rect(self.x + 15, leg_y, leg_width, leg_height)
-        pygame.draw.rect(screen, DARK_GREEN, left_leg_rect, border_radius=4)
-        pygame.draw.rect(screen, outline_color, left_leg_rect, 2, border_radius=4)
+        left_leg_rect = pygame.Rect(self.x + 12, leg_y, leg_width, leg_height)
+        pygame.draw.rect(screen, SILVER, left_leg_rect, border_radius=3)
+        pygame.draw.rect(screen, outline_color, left_leg_rect, 2, border_radius=3)
         
         # Right leg
-        right_leg_rect = pygame.Rect(self.x + self.width - 30, leg_y, leg_width, leg_height)
-        pygame.draw.rect(screen, DARK_GREEN, right_leg_rect, border_radius=4)
-        pygame.draw.rect(screen, outline_color, right_leg_rect, 2, border_radius=4)
-        
-        # Feet
-        foot_y = leg_y + leg_height - 2
-        pygame.draw.ellipse(screen, BLACK, (self.x + 10, foot_y, 20, 8))
-        pygame.draw.ellipse(screen, BLACK, (self.x + self.width - 30, foot_y, 20, 8))
+        right_leg_rect = pygame.Rect(self.x + self.width - 24, leg_y, leg_width, leg_height)
+        pygame.draw.rect(screen, SILVER, right_leg_rect, border_radius=3)
+        pygame.draw.rect(screen, outline_color, right_leg_rect, 2, border_radius=3)
 
 class TrashItem:
     def __init__(self, trash_type=None):
@@ -214,7 +193,7 @@ class TrashItem:
         self.height = TRASH_HEIGHT
         self.speed = TRASH_SPEED
         self.rotation = 0
-        self.rotation_speed = random.uniform(-3, 3)
+        self.rotation_speed = random.uniform(-2, 2)
         
         # Extended trash types: 0=Plastic, 1=Paper, 2=Organic, 3=Metal, 4=Glass
         if trash_type is None:
@@ -224,50 +203,36 @@ class TrashItem:
             
         self.colors = [BLUE, WHITE, BROWN, GRAY, LIGHT_GREEN]
         self.names = ["Plastic", "Paper", "Organic", "Metal", "Glass"]
-        self.icons = ["🥤", "📄", "🍌", "🥫", "🍶"]
         
     def update(self):
         self.y += self.speed
         self.rotation += self.rotation_speed
         
     def draw(self, screen):
-        # Create a surface for rotation
-        surf = pygame.Surface((self.width + 20, self.height + 20), pygame.SRCALPHA)
+        # Simple geometric shapes for trash
+        center_x = self.x + self.width // 2
+        center_y = self.y + self.height // 2
         
-        # Draw trash item on the surface
-        color = self.colors[self.trash_type]
-        
-        if self.trash_type == 0:  # Plastic bottle
-            pygame.draw.rect(surf, color, (10, 5, 20, 30))
-            pygame.draw.rect(surf, color, (12, 2, 16, 8))
-        elif self.trash_type == 1:  # Paper
-            pygame.draw.rect(surf, color, (5, 5, 25, 30))
-            pygame.draw.lines(surf, BLACK, False, [(8, 10), (27, 10)], 2)
-            pygame.draw.lines(surf, BLACK, False, [(8, 15), (27, 15)], 2)
-        elif self.trash_type == 2:  # Organic (banana)
-            pygame.draw.ellipse(surf, YELLOW, (8, 5, 20, 30))
-            pygame.draw.arc(surf, BROWN, (8, 5, 20, 30), 0, math.pi, 3)
-        elif self.trash_type == 3:  # Metal can
-            pygame.draw.rect(surf, color, (8, 5, 20, 30))
-            pygame.draw.ellipse(surf, color, (8, 5, 20, 8))
-        elif self.trash_type == 4:  # Glass bottle
-            pygame.draw.rect(surf, color, (10, 10, 16, 25))
-            pygame.draw.rect(surf, color, (12, 5, 12, 10))
-        
-        # Add outline
-        pygame.draw.rect(surf, BLACK, (5, 5, 25, 30), 2)
-        
-        # Rotate the surface
-        rotated_surf = pygame.transform.rotate(surf, self.rotation)
-        
-        # Get the rect and center it
-        rect = rotated_surf.get_rect(center=(self.x + self.width//2, self.y + self.height//2))
-        screen.blit(rotated_surf, rect)
+        if self.trash_type == 0:  # Plastic - Blue square
+            pygame.draw.rect(screen, BLUE, (self.x, self.y, self.width, self.height))
+            pygame.draw.rect(screen, BLACK, (self.x, self.y, self.width, self.height), 2)
+        elif self.trash_type == 1:  # Paper - White square
+            pygame.draw.rect(screen, WHITE, (self.x, self.y, self.width, self.height))
+            pygame.draw.rect(screen, BLACK, (self.x, self.y, self.width, self.height), 2)
+        elif self.trash_type == 2:  # Organic - Brown square
+            pygame.draw.rect(screen, BROWN, (self.x, self.y, self.width, self.height))
+            pygame.draw.rect(screen, BLACK, (self.x, self.y, self.width, self.height), 2)
+        elif self.trash_type == 3:  # Metal - Gray square
+            pygame.draw.rect(screen, GRAY, (self.x, self.y, self.width, self.height))
+            pygame.draw.rect(screen, BLACK, (self.x, self.y, self.width, self.height), 2)
+        elif self.trash_type == 4:  # Glass - Light green square
+            pygame.draw.rect(screen, LIGHT_GREEN, (self.x, self.y, self.width, self.height))
+            pygame.draw.rect(screen, BLACK, (self.x, self.y, self.width, self.height), 2)
 
 class Bin:
     def __init__(self, x, bin_type):
         self.x = x
-        self.y = SCREEN_HEIGHT - BIN_HEIGHT - 20
+        self.y = SCREEN_HEIGHT - BIN_HEIGHT - 30
         self.width = BIN_WIDTH
         self.height = BIN_HEIGHT
         self.bin_type = bin_type
@@ -279,27 +244,17 @@ class Bin:
         # Glow effect
         if self.glow > 0:
             pygame.draw.rect(screen, GREEN, 
-                           (self.x - 5, self.y - 5, self.width + 10, self.height + 10))
+                           (self.x - 5, self.y - 5, self.width + 10, self.height + 10), border_radius=5)
             self.glow -= 1
         
-        # Main bin
+        # Main bin (rounded rectangle like reference image)
         pygame.draw.rect(screen, self.colors[self.bin_type], 
-                        (self.x, self.y, self.width, self.height))
+                        (self.x, self.y, self.width, self.height), border_radius=8)
         pygame.draw.rect(screen, BLACK, 
-                        (self.x, self.y, self.width, self.height), 4)
+                        (self.x, self.y, self.width, self.height), 3, border_radius=8)
         
-        # 3D effect
-        pygame.draw.polygon(screen, tuple(max(0, c-30) for c in self.colors[self.bin_type][:3]),
-                          [(self.x, self.y), (self.x + 10, self.y - 10), 
-                           (self.x + self.width + 10, self.y - 10), (self.x + self.width, self.y)])
-        
-        # Lid
-        pygame.draw.ellipse(screen, tuple(min(255, c+20) for c in self.colors[self.bin_type][:3]),
-                          (self.x - 5, self.y - 15, self.width + 10, 20))
-        pygame.draw.ellipse(screen, BLACK, (self.x - 5, self.y - 15, self.width + 10, 20), 3)
-        
-        # Label with better font
-        font = pygame.font.Font(None, 20)
+        # Label
+        font = pygame.font.Font(None, 18)
         text = font.render(self.names[self.bin_type], True, BLACK)
         text_rect = text.get_rect(center=(self.x + self.width//2, self.y + self.height//2))
         screen.blit(text, text_rect)
@@ -308,8 +263,8 @@ class PowerUp:
     def __init__(self):
         self.x = random.randint(50, SCREEN_WIDTH - 50)
         self.y = -30
-        self.width = 40
-        self.height = 40
+        self.width = 30
+        self.height = 30
         self.speed = 3
         self.type = random.choice(['slow_time', 'extra_time', 'double_points', 'extra_life'])
         self.colors = {
@@ -331,21 +286,17 @@ class PowerUp:
         self.bounce += 0.2
         
     def draw(self, screen):
-        bounce_offset = int(math.sin(self.bounce) * 3)
+        bounce_offset = int(math.sin(self.bounce) * 2)
         y_pos = self.y + bounce_offset
         
-        # Glow effect
-        pygame.draw.circle(screen, (*self.colors[self.type][:3], 100), 
-                         (self.x + self.width//2, y_pos + self.height//2), 25)
-        
-        # Main power-up
+        # Simple circle power-up
         pygame.draw.circle(screen, self.colors[self.type], 
-                         (self.x + self.width//2, y_pos + self.height//2), 20)
-        pygame.draw.circle(screen, WHITE, 
-                         (self.x + self.width//2, y_pos + self.height//2), 20, 3)
+                         (self.x + self.width//2, y_pos + self.height//2), 15)
+        pygame.draw.circle(screen, BLACK, 
+                         (self.x + self.width//2, y_pos + self.height//2), 15, 2)
         
         # Symbol
-        font = pygame.font.Font(None, 24)
+        font = pygame.font.Font(None, 20)
         text = font.render(self.symbols[self.type], True, BLACK)
         text_rect = text.get_rect(center=(self.x + self.width//2, y_pos + self.height//2))
         screen.blit(text, text_rect)
@@ -353,7 +304,7 @@ class PowerUp:
 class Game:
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Trash Trouble - Enhanced Robot Edition")
+        pygame.display.set_caption("Trash Trouble - Clean Interface")
         self.clock = pygame.time.Clock()
         
         self.player = Player()
@@ -361,36 +312,36 @@ class Game:
         self.power_ups = []
         self.particles = []
         
-        # 5 bins now for all trash types
+        # 5 bins evenly spaced
         bin_spacing = SCREEN_WIDTH // 6
         self.bins = [
-            Bin(bin_spacing - BIN_WIDTH//2, 0),      # Plastic
-            Bin(bin_spacing * 2 - BIN_WIDTH//2, 1),  # Paper
-            Bin(bin_spacing * 3 - BIN_WIDTH//2, 2),  # Organic
-            Bin(bin_spacing * 4 - BIN_WIDTH//2, 3),  # Metal
-            Bin(bin_spacing * 5 - BIN_WIDTH//2, 4),  # Glass
+            Bin(bin_spacing * 1 - BIN_WIDTH//2, 0),      # Plastic
+            Bin(bin_spacing * 2 - BIN_WIDTH//2, 1),      # Paper
+            Bin(bin_spacing * 3 - BIN_WIDTH//2, 2),      # Organic
+            Bin(bin_spacing * 4 - BIN_WIDTH//2, 3),      # Metal
+            Bin(bin_spacing * 5 - BIN_WIDTH//2, 4),      # Glass
         ]
         
         self.score = 0
         self.lives = 3
         self.level = 1
-        self.timer = 180  # Extended timer for more play time
+        self.timer = 180
         
         # Game state
         self.game_state = "enter_name"
         self.player_name = ""
         self.input_active = True
         
-        # Define rects for input elements
-        self.input_box_rect = pygame.Rect(SCREEN_WIDTH//2 - 150, 180, 300, 50)
-        self.upload_button_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, 260, 200, 50)
-        self.reset_face_button_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, 320, 200, 50)
+        # UI elements
+        self.input_box_rect = pygame.Rect(SCREEN_WIDTH//2 - 150, 200, 300, 50)
+        self.upload_button_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, 280, 200, 40)
+        self.reset_face_button_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, 330, 200, 40)
         
         self.player_face_image = self.load_player_face()
         if self.player_face_image:
             self.player.face_image = self.player_face_image
             
-        self.high_score = 0  # Track highest score in session
+        self.high_score = 0
         
         # Power-up effects
         self.slow_time_timer = 0
@@ -399,9 +350,9 @@ class Game:
         
         # Spawn timers
         self.spawn_timer = 0
-        self.spawn_delay = 60
+        self.spawn_delay = 90
         self.powerup_spawn_timer = 0
-        self.powerup_spawn_delay = 600  # 10 seconds
+        self.powerup_spawn_delay = 600
         
         # Combo system
         self.combo_count = 0
@@ -409,18 +360,18 @@ class Game:
         
         # Background elements
         self.background_elements = []
-        for i in range(20):
+        for i in range(15):
             self.background_elements.append({
                 'x': random.randint(0, SCREEN_WIDTH),
                 'y': random.randint(0, SCREEN_HEIGHT),
-                'size': random.randint(3, 8),
-                'color': random.choice([LIGHT_GREEN, WHITE, YELLOW]),
-                'speed': random.uniform(0.5, 2)
+                'size': random.randint(2, 5),
+                'color': (255, 255, 255, 50),
+                'speed': random.uniform(0.5, 1.5)
             })
     
     def open_file_dialog_and_load_face(self):
         root = Tk()
-        root.withdraw()  # Hide the main Tkinter window
+        root.withdraw()
         file_path = filedialog.askopenfilename(
             title="Select a face image for your robot",
             filetypes=[("Image Files", "*.png *.jpg *.jpeg *.bmp *.gif")]
@@ -428,39 +379,33 @@ class Game:
         root.destroy()
         
         if file_path:
-            self.player_face_image = self.load_player_face(file_path)
-            if self.player_face_image:
-                self.player.face_image = self.player_face_image
-                print(f"Face image loaded successfully from: {file_path}")
-            else:
-                print("Failed to load face image")
+            try:
+                # Load and process the image
+                image = pygame.image.load(file_path).convert_alpha()
+                
+                # Scale to appropriate size
+                target_size = 32
+                image = pygame.transform.scale(image, (target_size, target_size))
+                
+                self.player_face_image = image
+                self.player.face_image = image
+                print(f"Face image loaded successfully: {file_path}")
+            except Exception as e:
+                print(f"Error loading face image: {e}")
 
     def load_player_face(self, file_path=None):
         try:
-            path_to_load = file_path
-            if not path_to_load:
-                # Try common file names in the game directory
-                for filename in ["face.png", "face.jpg", "face.jpeg", "robot_face.png", "my_face.png"]:
-                    if os.path.exists(filename):
-                        path_to_load = filename
-                        break
-                
-            if path_to_load:
-                print(f"Loading face image from: {path_to_load}")
-                image = pygame.image.load(path_to_load).convert_alpha()
-                # Keep original aspect ratio but scale to fit
-                original_size = image.get_size()
-                max_size = 50
-                scale_factor = min(max_size / original_size[0], max_size / original_size[1])
-                new_size = (int(original_size[0] * scale_factor), int(original_size[1] * scale_factor))
-                image = pygame.transform.scale(image, new_size)
+            if file_path and os.path.exists(file_path):
+                image = pygame.image.load(file_path).convert_alpha()
+                image = pygame.transform.scale(image, (32, 32))
                 return image
         except Exception as e:
-            print(f"Could not load custom face image: {e}")
+            print(f"Could not load face image: {e}")
         return None
     
     def reset_face(self):
         self.player.face_image = None
+        self.player_face_image = None
         print("Robot face reset to default")
     
     def create_particles(self, x, y, color, count=5):
@@ -470,16 +415,16 @@ class Game:
             self.particles.append(Particle(x, y, color, velocity_x, velocity_y))
     
     def spawn_trash(self):
-        if len(self.trash_items) < 6:
+        if len(self.trash_items) < 4:
             new_trash = TrashItem()
             speed_multiplier = 1.0
             if self.slow_time_timer > 0:
                 speed_multiplier = 0.5
-            new_trash.speed = (TRASH_SPEED + (self.level - 1) * 0.3) * speed_multiplier
+            new_trash.speed = (TRASH_SPEED + (self.level - 1) * 0.2) * speed_multiplier
             self.trash_items.append(new_trash)
     
     def spawn_powerup(self):
-        if len(self.power_ups) < 1 and random.random() < 0.3:
+        if len(self.power_ups) < 1 and random.random() < 0.2:
             self.power_ups.append(PowerUp())
     
     def check_collision(self, rect1_x, rect1_y, rect1_w, rect1_h, 
@@ -576,19 +521,19 @@ class Game:
             self.game_state = "game_over"
         
         # Level progression
-        if self.score > 0 and self.score % 150 == 0:
-            self.level = self.score // 150 + 1
-            self.spawn_delay = max(25, 60 - (self.level - 1) * 4)
+        if self.score > 0 and self.score % 100 == 0:
+            self.level = self.score // 100 + 1
+            self.spawn_delay = max(30, 90 - (self.level - 1) * 5)
     
     def activate_powerup(self, powerup):
         self.create_particles(powerup.x, powerup.y, powerup.colors[powerup.type], 8)
         
         if powerup.type == 'slow_time':
-            self.slow_time_timer = 300  # 5 seconds
+            self.slow_time_timer = 300
         elif powerup.type == 'extra_time':
             self.timer += 15
         elif powerup.type == 'double_points':
-            self.double_points_timer = 300  # 5 seconds
+            self.double_points_timer = 300
         elif powerup.type == 'extra_life':
             self.lives += 1
     
@@ -602,14 +547,14 @@ class Game:
                         # Correct bin!
                         points = 10 * self.score_multiplier
                         self.combo_count += 1
-                        self.combo_timer = 180  # 3 seconds
+                        self.combo_timer = 180
                         
                         # Combo bonus
                         if self.combo_count >= 3:
                             points += self.combo_count * 2
                         
                         self.score += points
-                        bin.glow = 20
+                        bin.glow = 30
                         self.create_particles(bin.x + bin.width//2, bin.y, GREEN, 8)
                         
                     else:
@@ -625,55 +570,39 @@ class Game:
                     break
     
     def draw_background(self):
-        # Gradient background
-        for y in range(SCREEN_HEIGHT):
-            color_ratio = y / SCREEN_HEIGHT
-            r = int(135 + (175 - 135) * color_ratio)
-            g = int(206 + (238 - 206) * color_ratio)
-            b = int(235 + (255 - 235) * color_ratio)
-            pygame.draw.line(self.screen, (r, g, b), (0, y), (SCREEN_WIDTH, y))
+        # Clean sky blue background like reference image
+        self.screen.fill((135, 206, 235))
         
-        # Background elements
+        # Simple white floating elements
         for element in self.background_elements:
-            pygame.draw.circle(self.screen, element['color'], 
+            pygame.draw.circle(self.screen, (255, 255, 255, 100), 
                              (int(element['x']), int(element['y'])), element['size'])
     
     def draw_menu(self):
         self.draw_background()
         
-        # Title with shadow
-        font = pygame.font.Font(None, 84)
-        shadow = font.render("TRASH TROUBLE", True, BLACK)
+        # Title
+        font = pygame.font.Font(None, 72)
         title = font.render("TRASH TROUBLE", True, WHITE)
-        self.screen.blit(shadow, (SCREEN_WIDTH//2 - shadow.get_width()//2 + 3, 103))
+        title_shadow = font.render("TRASH TROUBLE", True, BLACK)
+        self.screen.blit(title_shadow, (SCREEN_WIDTH//2 - title.get_width()//2 + 2, 102))
         self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 100))
         
-        # Subtitle
-        font = pygame.font.Font(None, 36)
-        subtitle = font.render("Enhanced Robot Edition", True, YELLOW)
-        self.screen.blit(subtitle, (SCREEN_WIDTH//2 - subtitle.get_width()//2, 180))
-        
         # Instructions
-        font = pygame.font.Font(None, 32)
+        font = pygame.font.Font(None, 28)
         instructions = [
             "Sort falling trash into correct bins!",
-            "5 types: Plastic, Paper, Organic, Metal, Glass",
-            "Collect power-ups for special effects!",
             "",
-            "Controls:",
-            "← → Arrow Keys: Move",
-            "Spacebar: Drop trash",
+            "Controls: ← → Move, SPACE Drop",
             "",
-            "Press SPACE to Start",
-            "",
-            "Tip: Combo correct drops for bonus points!"
+            "Press SPACE to Start"
         ]
         
         for i, instruction in enumerate(instructions):
             if instruction:
                 color = WHITE if not instruction.startswith("Press") else YELLOW
                 text = font.render(instruction, True, color)
-                self.screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, 220 + i * 35))
+                self.screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, 250 + i * 40))
     
     def draw_game(self):
         self.draw_background()
@@ -700,141 +629,118 @@ class Game:
         # Draw carried trash
         if self.player.carrying_trash:
             carried_trash = self.player.carrying_trash
-            carried_trash.x = self.player.x + 17
-            carried_trash.y = self.player.y - 45
+            carried_trash.x = self.player.x + 15
+            carried_trash.y = self.player.y - 40
             carried_trash.draw(self.screen)
         
-        # Enhanced UI
+        # UI
         self.draw_ui()
     
     def draw_ui(self):
-        # UI Background
-        ui_surface = pygame.Surface((SCREEN_WIDTH, 60), pygame.SRCALPHA)
-        ui_surface.fill((0, 0, 0, 120))
-        self.screen.blit(ui_surface, (0, 0))
+        # Clean UI like reference image
+        font = pygame.font.Font(None, 24)
         
-        font = pygame.font.Font(None, 32)
-        
-        # Score with multiplier
+        # Score
         score_text = f"Score: {self.score}"
         if self.score_multiplier > 1:
             score_text += f" (×{self.score_multiplier})"
-        score_surface = font.render(score_text, True, YELLOW)
+        score_surface = font.render(score_text, True, BLACK)
         self.screen.blit(score_surface, (10, 10))
         
-        # Lives with hearts
-        lives_text = "Lives: "
-        lives_surface = font.render(lives_text, True, WHITE)
-        self.screen.blit(lives_surface, (10, 40))
-        for i in range(self.lives):
-            heart_x = 80 + i * 25
-            pygame.draw.circle(self.screen, RED, (heart_x, 50), 8)
-        
         # Level
-        level_surface = font.render(f"Level: {self.level}", True, WHITE)
-        self.screen.blit(level_surface, (250, 10))
+        level_surface = font.render(f"Level: {self.level}", True, BLACK)
+        self.screen.blit(level_surface, (10, 35))
         
         # Player Name
-        name_surface = font.render(f"Player: {self.player_name}", True, WHITE)
+        name_surface = font.render(f"Player: {self.player_name}", True, BLACK)
         self.screen.blit(name_surface, (SCREEN_WIDTH // 2 - name_surface.get_width() // 2, 10))
         
-        # Timer with color coding
-        timer_color = WHITE if self.timer > 20 else RED
+        # Timer
+        timer_color = BLACK if self.timer > 20 else RED
         timer_surface = font.render(f"Time: {int(self.timer)}", True, timer_color)
-        self.screen.blit(timer_surface, (SCREEN_WIDTH - 150, 10))
+        self.screen.blit(timer_surface, (SCREEN_WIDTH - 120, 10))
         
-        # Combo counter
+        # Lives (hearts)
+        for i in range(self.lives):
+            heart_x = SCREEN_WIDTH - 120 + i * 20
+            pygame.draw.circle(self.screen, RED, (heart_x, 45), 6)
+        
+        # Combo
         if self.combo_count > 1:
             combo_surface = font.render(f"Combo: {self.combo_count}×", True, ORANGE)
-            self.screen.blit(combo_surface, (SCREEN_WIDTH - 200, 40))
-        
-        # Active power-ups
-        powerup_y = 70
-        font_small = pygame.font.Font(None, 24)
-        
-        if self.slow_time_timer > 0:
-            text = font_small.render(f"Slow Time: {self.slow_time_timer//60 + 1}s", True, PURPLE)
-            self.screen.blit(text, (10, powerup_y))
-            powerup_y += 25
-            
-        if self.double_points_timer > 0:
-            text = font_small.render(f"Double Points: {self.double_points_timer//60 + 1}s", True, ORANGE)
-            self.screen.blit(text, (10, powerup_y))
+            self.screen.blit(combo_surface, (10, 60))
     
     def draw_game_over(self):
         self.draw_background()
-        font = pygame.font.Font(None, 72)
+        font = pygame.font.Font(None, 64)
         over_text = font.render("GAME OVER", True, RED)
-        self.screen.blit(over_text, (SCREEN_WIDTH//2 - over_text.get_width()//2, 120))
-        font_small = pygame.font.Font(None, 40)
-        score_text = font_small.render(f"{self.player_name}'s Score: {self.score}", True, YELLOW)
-        self.screen.blit(score_text, (SCREEN_WIDTH//2 - score_text.get_width()//2, 220))
-        high_score_text = font_small.render(f"High Score: {self.high_score}", True, ORANGE)
-        self.screen.blit(high_score_text, (SCREEN_WIDTH//2 - high_score_text.get_width()//2, 270))
-        tip_text = font_small.render("Press R to Restart or Q to Quit", True, WHITE)
-        self.screen.blit(tip_text, (SCREEN_WIDTH//2 - tip_text.get_width()//2, 340))
-        font_tip = pygame.font.Font(None, 32)
-        motivational = font_tip.render("Tip: Try to keep your combo going for max points!", True, GREEN)
-        self.screen.blit(motivational, (SCREEN_WIDTH//2 - motivational.get_width()//2, 400))
+        self.screen.blit(over_text, (SCREEN_WIDTH//2 - over_text.get_width()//2, 200))
+        
+        font_small = pygame.font.Font(None, 32)
+        score_text = font_small.render(f"{self.player_name}'s Score: {self.score}", True, BLACK)
+        self.screen.blit(score_text, (SCREEN_WIDTH//2 - score_text.get_width()//2, 280))
+        
+        high_score_text = font_small.render(f"High Score: {self.high_score}", True, BLACK)
+        self.screen.blit(high_score_text, (SCREEN_WIDTH//2 - high_score_text.get_width()//2, 320))
+        
+        tip_text = font_small.render("Press R to Restart or Q to Quit", True, BLACK)
+        self.screen.blit(tip_text, (SCREEN_WIDTH//2 - tip_text.get_width()//2, 380))
     
     def draw_enter_name(self):
         self.draw_background()
-        font_title = pygame.font.Font(None, 60)
-        font_input = pygame.font.Font(None, 48)
-        font_inst = pygame.font.Font(None, 28)
+        font_title = pygame.font.Font(None, 48)
+        font_input = pygame.font.Font(None, 36)
+        font_inst = pygame.font.Font(None, 24)
 
         # Title
-        title_text = font_title.render("Create Your Robot", True, WHITE)
-        self.screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, 80))
+        title_text = font_title.render("Create Your Robot Player", True, BLACK)
+        self.screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, 100))
         
         # Input Box
-        input_box_color = YELLOW if self.input_active else WHITE
-        pygame.draw.rect(self.screen, input_box_color, self.input_box_rect, 2)
+        input_color = YELLOW if self.input_active else GRAY
+        pygame.draw.rect(self.screen, WHITE, self.input_box_rect)
+        pygame.draw.rect(self.screen, input_color, self.input_box_rect, 3)
         
         # Player name text
-        name_surface = font_input.render(self.player_name, True, YELLOW)
-        self.screen.blit(name_surface, (self.input_box_rect.x + 10, self.input_box_rect.y + 5))
+        name_surface = font_input.render(self.player_name, True, BLACK)
+        self.screen.blit(name_surface, (self.input_box_rect.x + 10, self.input_box_rect.y + 10))
         
         # Upload button
         pygame.draw.rect(self.screen, ORANGE, self.upload_button_rect)
-        upload_text_font = pygame.font.Font(None, 28)
-        upload_text = upload_text_font.render("Upload Face Image", True, BLACK)
+        upload_text = font_inst.render("Upload Face Image", True, BLACK)
         text_rect = upload_text.get_rect(center=self.upload_button_rect.center)
         self.screen.blit(upload_text, text_rect)
         
-        # Reset face button
+        # Reset button
         pygame.draw.rect(self.screen, RED, self.reset_face_button_rect)
-        reset_text = upload_text_font.render("Reset to Default", True, WHITE)
+        reset_text = font_inst.render("Reset to Default", True, WHITE)
         reset_rect = reset_text.get_rect(center=self.reset_face_button_rect.center)
         self.screen.blit(reset_text, reset_rect)
         
         # Instructions
-        inst_text1 = font_inst.render("Type your name and press ENTER to start", True, WHITE)
-        self.screen.blit(inst_text1, (SCREEN_WIDTH//2 - inst_text1.get_width()//2, 390))
+        inst_text1 = font_inst.render("Enter your name and press ENTER to continue", True, BLACK)
+        self.screen.blit(inst_text1, (SCREEN_WIDTH//2 - inst_text1.get_width()//2, 400))
         
         # Face status
         if self.player.face_image:
-            face_loaded_text = font_inst.render("✓ Custom face loaded!", True, LIGHT_GREEN)
-            self.screen.blit(face_loaded_text, (SCREEN_WIDTH//2 - face_loaded_text.get_width()//2, 420))
+            face_text = font_inst.render("✓ Custom face loaded!", True, GREEN)
+            self.screen.blit(face_text, (SCREEN_WIDTH//2 - face_text.get_width()//2, 430))
         else:
-            inst_text2 = font_inst.render("Using default robot face", True, GRAY)
-            self.screen.blit(inst_text2, (SCREEN_WIDTH//2 - inst_text2.get_width()//2, 420))
+            face_text = font_inst.render("Using default robot face", True, GRAY)
+            self.screen.blit(face_text, (SCREEN_WIDTH//2 - face_text.get_width()//2, 430))
         
-        # Show preview of robot
+        # Robot preview
         preview_player = Player()
-        preview_player.x = SCREEN_WIDTH//2 - 35
-        preview_player.y = 450
+        preview_player.x = SCREEN_WIDTH//2 - 30
+        preview_player.y = 480
         preview_player.face_image = self.player.face_image
         preview_player.draw(self.screen)
-        
-        preview_label = font_inst.render("Preview:", True, WHITE)
-        self.screen.blit(preview_label, (SCREEN_WIDTH//2 - 80, 435))
 
     def restart_game(self):
         if self.score > self.high_score:
             self.high_score = self.score
         
-        # Keep face image and name
+        # Keep important data
         face_image = self.player.face_image
         player_name = self.player_name
         high_score = self.high_score
@@ -872,7 +778,7 @@ class Game:
                             elif event.key == pygame.K_BACKSPACE:
                                 self.player_name = self.player_name[:-1]
                             else:
-                                if len(self.player_name) < 15: # Limit name length
+                                if len(self.player_name) < 15:
                                     self.player_name += event.unicode
                 
                 elif event.type == pygame.KEYDOWN:
@@ -890,11 +796,11 @@ class Game:
                         elif event.key == pygame.K_q:
                             running = False
             
-            # Update game state
+            # Update
             if self.game_state == "playing":
                 self.update_game()
             
-            # Draw everything
+            # Draw
             if self.game_state == "enter_name":
                 self.draw_enter_name()
             elif self.game_state == "menu":
